@@ -56,7 +56,6 @@ func Getfiles(pathh string) int{
 
 func AddEmailByFile(filePath string, groupMail string, srv *admin.Service) bool {
 	fmt.Printf("[AddEmail]: %s\n",filePath)
-	defer wg.Done()
 	var data Data
 	d, err := ioutil.ReadFile(filePath)
 	if err != nil {
@@ -105,6 +104,7 @@ func JsonAdd(dirPath string, groupMail string){
 }
 
 func EmailGoroutine(sem *semaphore.Weighted, ctx context.Context, filePath string, groupMail string, service *admin.Service, bar *pb.ProgressBar) {
+	defer wg.Done()
 	sem.Acquire(ctx,1)
 	AddEmailByFile(filePath,groupMail,service)
 	bar.Increment()
