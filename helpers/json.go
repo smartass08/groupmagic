@@ -9,8 +9,15 @@ import (
 	"path"
 	"path/filepath"
 	"github.com/cheggaaa/pb/v3"
+	"golang.org/x/sync/semaphore"
+	"google.golang.org/api/admin/directory/v1"
 	"sync"
+	"context"
+	"time"
 )
+
+var wg sync.WaitGroup
+const LIMIT int64 = 30
 
 type Data struct{
 	Type string `json:"type"`
@@ -28,73 +35,78 @@ type Data struct{
 func Getfiles(pathh string) int{
 	d, err := os.Open(pathh)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		log.Fatal(err)
 	}
 	defer d.Close()
 
 	files, err := d.Readdir(-1)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		log.Fatal(err)
 	}
-	i := 0
+	count := 0
 	for _, file := range files {
 		if file.Mode().IsRegular() {
 			if filepath.Ext(file.Name()) == ".json" {
-				i++
+				count++
 			}
 		}
-
 	}
-	return i
+	return count
 }
 
-func JsonAdd(pathh string, grpmail string){
-	d, err := os.Open(pathh)
+func AddEmailByFile(filePath string, groupMail string, srv *admin.Service) bool {
+	fmt.Printf("[AddEmail]: %s\n",filePath)
+	defer wg.Done()
+	var data Data
+	d, err := ioutil.ReadFile(filePath)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		log.Println(err)
+		return false
+	}
+	err = json.Unmarshal(d, &data)
+	if err != nil {
+		log.Println(err)
+		return false
+	}
+	Addemails(data.ClientEmail, groupMail, srv)
+	return true
+}
+
+func JsonAdd(dirPath string, groupMail string){
+	d, err := os.Open(dirPath)
+	if err != nil {
+		log.Fatal(err)
 	}
 	defer d.Close()
-
 	files, err := d.Readdir(-1)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		log.Fatal(err)
 	}
-	count := Getfiles(pathh)
-	serv, err := GetService()
+	count := Getfiles(dirPath)
+	sem := semaphore.NewWeighted(LIMIT)
+	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
+	defer cancel()
+	service,err := GetService()
 	if err != nil {
 		log.Fatalf("Unable to create service, Error is : %v", err)
 	}
 	bar := pb.StartNew(count)
-	var wg sync.WaitGroup
-	wg.Add(count)
-	for _, file := range files {
+	for _,file := range files{
 		if file.Mode().IsRegular() {
 			if filepath.Ext(file.Name()) == ".json" {
-				go func(sem) {
-					defer wg.Done()
-					// fmt.Println(file.Name())
-					var data Data
-					dir := path.Join(pathh, file.Name())
-					//fmt.Println(dir)
-					d, err := ioutil.ReadFile(dir)
-					if err != nil {
-						fmt.Print(err)
-					}
-					//fmt.Println(d)
-					err = json.Unmarshal(d, &data)
-					if err != nil {
-						fmt.Println("error:", err)
-					}
-					Addemails(data.ClientEmail, grpmail, serv)
-					bar.Increment()
-				}()
+				filePath := path.Join(dirPath, file.Name())
+				go EmailGoroutine(sem,ctx,filePath,groupMail,service,bar)
+				wg.Add(1)
 			}
 		}
 	}
 	wg.Wait()
 	bar.Finish()
+}
+
+func EmailGoroutine(sem *semaphore.Weighted, ctx context.Context, filePath string, groupMail string, service *admin.Service, bar *pb.ProgressBar) {
+	sem.Acquire(ctx,1)
+	AddEmailByFile(filePath,groupMail,service)
+	bar.Increment()
+	sem.Release(1)
 }

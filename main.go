@@ -8,7 +8,7 @@ import (
 	"os"
 )
 
-func SingleAdd(c *cli.Context) error{
+func SingleAdd(c *cli.Context) error {
 	srv, err := helpers.GetService()
 	if err != nil {
 		log.Fatalf("Unable to create service, Error is : %v", err)
@@ -19,7 +19,7 @@ func SingleAdd(c *cli.Context) error{
 }
 
 
-func MultipleAdd(c *cli.Context) error{
+func MultipleAdd(c *cli.Context) error {
 	fmt.Println("Adding Emails!")
 	helpers.JsonAdd(c.String("SaPath"), c.String("group"))
 	return nil
@@ -55,13 +55,13 @@ func main() {
 
 	app.Commands = cli.Commands{
 		{
-			Name:"Single",
+			Name:"single",
 			Usage:"Add single email to your google group.",
 			Flags:single,
 			Action:SingleAdd,
 		},
 		{
-			Name:"Multiple",
+			Name:"multiple",
 			Usage:"Add multiple emails from jsons to your google group.",
 			Flags:multiple,
 			Action:MultipleAdd,
