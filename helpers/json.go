@@ -2,7 +2,6 @@ package helpers
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -13,7 +12,6 @@ import (
 	"google.golang.org/api/admin/directory/v1"
 	"sync"
 	"context"
-	"time"
 )
 
 var wg sync.WaitGroup
@@ -55,7 +53,7 @@ func Getfiles(pathh string) int{
 }
 
 func AddEmailByFile(filePath string, groupMail string, srv *admin.Service) bool {
-	fmt.Printf("[AddEmail]: %s\n",filePath)
+	//fmt.Printf("[AddEmail]: %s\n",filePath)
 	var data Data
 	d, err := ioutil.ReadFile(filePath)
 	if err != nil {
@@ -83,8 +81,6 @@ func JsonAdd(dirPath string, groupMail string){
 	}
 	count := Getfiles(dirPath)
 	sem := semaphore.NewWeighted(LIMIT)
-	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
-	defer cancel()
 	service,err := GetService()
 	if err != nil {
 		log.Fatalf("Unable to create service, Error is : %v", err)
@@ -94,7 +90,7 @@ func JsonAdd(dirPath string, groupMail string){
 		if file.Mode().IsRegular() {
 			if filepath.Ext(file.Name()) == ".json" {
 				filePath := path.Join(dirPath, file.Name())
-				go EmailGoroutine(sem,ctx,filePath,groupMail,service,bar)
+				go EmailGoroutine(sem,filePath,groupMail,service,bar)
 				wg.Add(1)
 			}
 		}
@@ -103,8 +99,9 @@ func JsonAdd(dirPath string, groupMail string){
 	bar.Finish()
 }
 
-func EmailGoroutine(sem *semaphore.Weighted, ctx context.Context, filePath string, groupMail string, service *admin.Service, bar *pb.ProgressBar) {
+func EmailGoroutine(sem *semaphore.Weighted, filePath string, groupMail string, service *admin.Service, bar *pb.ProgressBar) {
 	defer wg.Done()
+	ctx := context.TODO()
 	sem.Acquire(ctx,1)
 	AddEmailByFile(filePath,groupMail,service)
 	bar.Increment()
