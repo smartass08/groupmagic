@@ -16,6 +16,8 @@ A simple program written in GoLang that allows you to add your emails to gsuite'
      +  `./groupmagic multiple --SaPath "YourAccountsfolder" --group "group@domain.tld"`
         + Where `"YourAccountsfolder"` is your path to the `.json` files  (default is "accounts" in same folder) & `"group@domain.tld"` is your gsuite group email address
 
+- For windows users :- just change ./groupmagic to ./groupmagic.exe
+
 - You are to use `./groupmagic --help` to view all this info again in program.
 
 
